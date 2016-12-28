@@ -7,15 +7,6 @@ import keys
 import file_uploader
 import form_handler
 
-##imgur_id = config.get('imgurBot','client_id')
-##imgur_secret = config.get('imgurBot','client_secret')
-##client = pyimgur.Imgur(client_id)
-
-##CLIENT_ID = 'Od88G943zMR4UQ'
-##CLIENT_SECRET = '1Y8qqD4DFpmR6Xfr9FXpfxDSTXQ'
-##REDIRECT_URL = 'http://127.0.0.1:65010/authorize_callback'
-##REFRESH_TOKEN = '62167096-lev3INJkTFPKO69ug0fhq3BAqbg'
-
 def main():
     print "entered main"
     subreddit = r.get_subreddit('test')
