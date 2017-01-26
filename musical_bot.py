@@ -9,34 +9,37 @@ import form_handler
 
 def main():
     global queue, timer, blocked
-    print("entered main")
     subreddit = r.subreddit('test') 
     #iterate through all comments in given subreddit
-    for comment in subreddit.stream.comments():
+    for submission in subreddit.stream.submissions():
         #reveal all hiding comments
-        comment.refresh()
-        try:
-            comment.replies.replace_more(limit=None)
-        except:
-            pass
-        if check_condition(comment):
-            #check if bot response recorded
-            if not keys.comment_replied(comment.id):
-                already_commented = False
-                for reply in comment.replies:
-                    print("entered reply loop")
-                    #check if bot commented
-                    if str(reply.author) == keys.reddit_user:
-                        print("already commented")
-                        keys.add_comment(comment.id)
-                        already_commented = True
-                        break
+        if praw.models.comment_forest.MoreComments in submission.comments:
+            submission.comments.replace_more(limit=None)
+        for comment in submission.comments.list():
+            if check_condition(comment):
+                print('comment found!')
+                #check if bot response recorded
+                #need up update to use postgreSQL
+                if not keys.comment_replied(comment.id):
+                    already_commented = False
+                    for reply in comment.replies:
+                        print("checking replies")
+                        #check if bot commented
+                        if str(reply.author) == keys.reddit_user:
+                            print("already commented")
+                            keys.add_comment(comment.id)
+                            already_commented = True
+                            break
+                else:
+                    already_commented = True
+                    print("already commented")
                 #last check if reply found before activating bot
                 if not already_commented:
                     bot_action(comment)
-        if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
-            blocked = False
-            submit_comments();
+            if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
+                print("submitting %d comments"%len(queue))
+                blocked = False
+                submit_comments();
 
 def check_condition(comment):
     text = comment.body
@@ -50,27 +53,24 @@ def bot_action(comment):
     print("enter bot_action")
     keys.add_comment(comment.id)
     text = comment.body
-    print("Text:\n" + text)
     start = text.index('{')
     end = text.index('}')
     notation,title,description = parse_notation(text[start+1:end])
-    print("parsed notation:\n" + notation)
     temp_res = form_handler.convert_from_abc(notation)
     if temp_res is None:
+        print('unable to convert from abc notation')
         return
     hosted_res = list()
     i = 0
     for r_img,r_mus in temp_res:
-        print(r_img)
-        print(r_mus)
         imglink = file_uploader.upload_image(r_img,title[i],description[i])
         muslink = file_uploader.upload_music(r_mus,comment,title[i],description[i])
         hosted_res.append((imglink,muslink))
         i += 1
-    msg = "(manual) Hi, I\'m musicaltextbot.\n\nI converted your abc notation to"
+    msg = "Hi, I\'m MusicalTextBot.\n\nI converted your abc notation to"
     for img,mus in hosted_res:
         msg = msg+"\n\n[score](%s) and [performed](%s)"%(img,mus)
-    msg = msg+"\n\n^^the ^^music ^^link ^^is ^^will ^^last ^^for ^^roughly ^^1 ^^hour"
+    msg = msg+"\n\n^^the ^^music ^^link ^^will ^^expire ^^in ^^roughly ^^1 ^^hour"
     reply = (comment,msg)
     queue.append(reply)
     
@@ -82,7 +82,7 @@ def submit_comments():
         queue.pop(0)
         print(msg)
     except:
-        print('commented too much, waiting...')
+        print('blocked, looking for more comments')
         blocked = True
         timer = time.time;       
 
