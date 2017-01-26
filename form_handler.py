@@ -6,10 +6,9 @@ from bs4 import BeautifulSoup
 #local
 import keys
 
-####TODO:Error handling for invalid notation/conversion comes back blank
 def convert_from_abc(notation):
     global browser
-    print "enter convert_notation"
+    print("enter convert_notation")
     #get page
     url = 'http://www.mandolintab.net/abcconverter.php'
     browser.open(url)
@@ -31,9 +30,10 @@ def convert_from_abc(notation):
     else:
         return None
 
+    # useful for host sites requiring mp3 format (not in use)
 def convert_from_midi(midi_url):
     global browser
-    print "converting to mp3"
+    print("converting to mp3")
     #get page
     url = 'http://conversion-tool.com/midi'
     browser.open(url)
@@ -43,6 +43,7 @@ def convert_from_midi(midi_url):
     browser.submit('calcbutton')
     return check_response(browser.geturl())
 
+    # helper for mp3 conversion
 def check_response(url):
     response = browser.open(url)
     start = time.clock()
