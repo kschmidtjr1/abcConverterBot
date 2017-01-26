@@ -8,32 +8,35 @@ import file_uploader
 import form_handler
 
 def main():
-    print "entered main"
-    subreddit = r.get_subreddit('test')
+    global queue, timer, blocked
+    print("entered main")
+    subreddit = r.subreddit('test') 
     #iterate through all comments in given subreddit
-    for c in praw.helpers.comment_stream(r,subreddit):
-        if check_condition(c):
+    for comment in subreddit.stream.comments():
+        #reveal all hiding comments
+        comment.refresh()
+        try:
+            comment.replies.replace_more(limit=None)
+        except:
+            pass
+        if check_condition(comment):
             #check if bot response recorded
-            if not keys.comment_replied(c.id):
+            if not keys.comment_replied(comment.id):
                 already_commented = False
-                #get context of comment (to get replies)
-                submission = r.get_submission(submission_id=c.permalink)
-                try: #reveal all hiding comments
-                    submission.replace_more_comments(limit=None, threshold=0)
-                except:
-                    pass
-                comment = submission.comments[0]
                 for reply in comment.replies:
-                    print "entered reply loop" 
+                    print("entered reply loop")
                     #check if bot commented
                     if str(reply.author) == keys.reddit_user:
-                        print "already commented"
-                        keys.add_comment(c.id)
+                        print("already commented")
+                        keys.add_comment(comment.id)
                         already_commented = True
                         break
                 #last check if reply found before activating bot
                 if not already_commented:
-                    bot_action(c)
+                    bot_action(comment)
+        if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
+            blocked = False
+            submit_comments();
 
 def check_condition(comment):
     text = comment.body
@@ -43,42 +46,45 @@ def check_condition(comment):
         end = text.index('}')
     return called and '|' in text[start+1:end]
 
-#TODO:threading or queued tasks for mp3 needing to be re-submitted or re-check_response
-#TODO:if don't have mp3 after first pass, edit post later
 def bot_action(comment):
-    print "enter bot_action"
+    print("enter bot_action")
     keys.add_comment(comment.id)
     text = comment.body
-    print "Text:\n" + text
+    print("Text:\n" + text)
     start = text.index('{')
     end = text.index('}')
     notation,title,description = parse_notation(text[start+1:end])
-    print "parsed notation:\n" + notation
+    print("parsed notation:\n" + notation)
     temp_res = form_handler.convert_from_abc(notation)
     if temp_res is None:
         return
     hosted_res = list()
     i = 0
     for r_img,r_mus in temp_res:
-        print r_img
-        print r_mus
+        print(r_img)
+        print(r_mus)
         imglink = file_uploader.upload_image(r_img,title[i],description[i])
         muslink = file_uploader.upload_music(r_mus,comment,title[i],description[i])
         hosted_res.append((imglink,muslink))
         i += 1
-    msg = "Hi, I\'m musicaltextbot.\n\nI converted your abc notation to"
+    msg = "(manual) Hi, I\'m musicaltextbot.\n\nI converted your abc notation to"
     for img,mus in hosted_res:
         msg = msg+"\n\n[score](%s) and [performed](%s)"%(img,mus)
-    #TODO: set up queue to get other info while waiting
-    passed = False
-    while not passed:
-        try:
-            comment.reply(msg)
-            passed = True
-        except:
-            print 'commented too much, waiting...'
-            time.sleep(60*10)            
-    print msg
+    msg = msg+"\n\n^^the ^^music ^^link ^^is ^^will ^^last ^^for ^^roughly ^^1 ^^hour"
+    reply = (comment,msg)
+    queue.append(reply)
+    
+def submit_comments():
+    response = queue[0]
+    comment,msg = response
+    try:
+        comment.reply(msg)
+        queue.pop(0)
+        print(msg)
+    except:
+        print('commented too much, waiting...')
+        blocked = True
+        timer = time.time;       
 
 def parse_notation(notation):
     tokens = notation.split('\n')
@@ -152,17 +158,8 @@ def parse_notation(notation):
     return output,titles,descriptions
 
 
-reddit_user_agent = "MusicalText abc music notation converter by /u/lurker3710"
-comment_ids = list()
-
-r = praw.Reddit(user_agent=reddit_user_agent, site_name='redditBot')
-r.refresh_access_information(refresh_token=r.refresh_token)
+r = praw.Reddit('redditBot')
+queue = list()
+blocked = False
+timer = time.time()
 main()
-##while True:
-##    #try:
-##    print "call main"
-##    main()
-##    except:
-##        print "assign r"
-##        r = praw.Reddit(user_agent=USER_AGENT, site_name='redditBot')
-##        r.refresh_access_information(refresh_token=r.refresh_token)
