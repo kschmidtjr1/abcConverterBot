@@ -35,7 +35,7 @@ def main():
         if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
             print("submitting %d comment(s)"%len(queue))
             blocked = False
-            #submit_comments();
+            submit_comments();
 
 def check_condition(comment):
     text = comment.body
