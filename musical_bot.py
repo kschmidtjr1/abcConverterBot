@@ -11,35 +11,31 @@ def main():
     global queue, timer, blocked
     subreddit = r.subreddit('test') 
     #iterate through all comments in given subreddit
-    for submission in subreddit.stream.submissions():
-        #reveal all hiding comments
-        if praw.models.comment_forest.MoreComments in submission.comments:
-            submission.comments.replace_more(limit=None)
-        for comment in submission.comments.list():
-            if check_condition(comment):
-                print('comment found!')
-                #check if bot response recorded
-                #need up update to use postgreSQL
-                if not keys.comment_replied(comment.id):
-                    already_commented = False
-                    for reply in comment.replies:
-                        print("checking replies")
-                        #check if bot commented
-                        if str(reply.author) == keys.reddit_user:
-                            print("already commented")
-                            keys.add_comment(comment.id)
-                            already_commented = True
-                            break
-                else:
-                    already_commented = True
-                    print("already commented")
-                #last check if reply found before activating bot
-                if not already_commented:
-                    bot_action(comment)
-            if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
-                print("submitting %d comments"%len(queue))
-                blocked = False
-                submit_comments();
+    for comment in subreddit.stream.comments():
+        if check_condition(comment):
+            print('comment found!')
+            #check if bot response recorded
+            #need up update to use postgreSQL
+            if not keys.comment_replied(comment.id):
+                already_commented = False
+                for reply in comment.replies:
+                    print("checking replies")
+                    #check if bot commented
+                    if str(reply.author) == keys.reddit_user:
+                        print("already commented")
+                        keys.add_comment(comment.id)
+                        already_commented = True
+                        break
+            else:
+                already_commented = True
+                print("already commented")
+            #last check if reply found before activating bot
+            if not already_commented:
+                bot_action(comment)
+        if len(queue) > 0 and (not blocked or time.time() > timer + 60 * 10):
+            print("submitting %d comment(s)"%len(queue))
+            blocked = False
+            #submit_comments();
 
 def check_condition(comment):
     text = comment.body
